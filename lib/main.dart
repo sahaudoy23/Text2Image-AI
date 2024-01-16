@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:replicate_json/replicate_json.dart';
-import 'package:image_downloader/image_downloader.dart';
+import 'runpod.dart';
 
 void main() => runApp(const MaterialApp(home: MyImageWidget()));
 
@@ -14,44 +13,13 @@ class MyImageWidget extends StatefulWidget {
 }
 
 class _MyImageWidgetState extends State<MyImageWidget> {
-  String? _imageUrl;
+  String? _imageBytes; // comment out if using replicate
+  //String? _imageUrl; //comment out if using runpod
   String? _errorMessage;
   final TextEditingController _queryController = TextEditingController();
   final TextEditingController _urlController = TextEditingController();
   late SharedPreferences _prefs;
   double _sharpness = 10;
-  String _selectedAspectRatio = "1152*896"; // Default aspect ratio
-  int _selectedImageCount = 1; // Default number of images
-
-  List<String> aspectRatios = [
-    "704*1408",
-    "704*1344",
-    "768*1344",
-    "768*1280",
-    "832*1216",
-    "832*1152",
-    "896*1152",
-    "896*1088",
-    "960*1088",
-    "960*1024",
-    "1024*1024",
-    "1024*960",
-    "1088*960",
-    "1088*896",
-    "1152*896",
-    "1152*832",
-    "1216*832",
-    "1280*768",
-    "1344*768",
-    "1344*704",
-    "1408*704",
-    "1472*704",
-    "1536*640",
-    "1600*640",
-    "1664*576",
-    "1728*576"
-    // ... (add other aspect ratios)
-  ];
 
   @override
   void initState() {
@@ -65,80 +33,88 @@ class _MyImageWidgetState extends State<MyImageWidget> {
   }
 
   Future<void> _loadSettings() async {
-    String? savedApiUrl = _prefs.getString('apiUrl');
-    if (savedApiUrl != null) {
-      _urlController.text = savedApiUrl;
+    String? savedSeed = _prefs.getString('seed');
+    if (savedSeed != null) {
+      _urlController.text = savedSeed;
+    } else {
+      _urlController.text = "-1";
     }
   }
 
   Future<void> _saveSettings() async {
-    String apiUrl = _urlController.text.trim();
-    if (apiUrl.isNotEmpty) {
-      await _prefs.setString('apiUrl', apiUrl);
+    String seed = _urlController.text.trim();
+    if (seed.isNotEmpty) {
+      await _prefs.setString('seed', seed);
     }
   }
 
   Future<void> _generateImage(String query, int sharpness) async {
-    String? apiUrl = _urlController.text.trim();
+    String? seed = _urlController.text.trim();
     await _saveSettings();
 
     setState(() {
-      _imageUrl = null;
+      //_imageurl = null; // comment out if using runpod
+      _imageBytes = null; // comment out if using replicate
       _errorMessage = null;
     });
 
     try {
-      String modelVersion =
-          "a7e8fa2f96b01d02584de2b3029a8452b9bf0c8fa4127a6d1cfd406edfad54fb"; // model version for replicate api
-      String apiKey = "r8_dsunejV07OOUQ5Tx1JHUPMkm9FJCJrj1SDXF2";
-         // "r8_WwCeTN4uC2wTXEcH4r50xflbTIkB4eF1gwgTz"; // replace with your api key
+      //String modelVersion = "a7e8fa2f96b01d02584de2b3029a8452b9bf0c8fa4127a6d1cfd406edfad54fb"; // comment out if using runpod
+      //String apiKey = "r8_2QsFXKi8ujufno8DHnuQRV67I94uESA2fUPxm"; // comment out if using runpod
 
-      List<String> imageUrls = [];
+      String modelVersion = "mhwg0w51p0ew5s"; // comment out if using replicate
+      String apiKey =
+          "ILI4MIZKZR45KE226BODAD5ENT9CNQZA735EEFX7"; // comment out if using replicate
 
-      for (int i = 0; i < _selectedImageCount; i++) {
-        Map<String, Object> input = {
-          "prompt": query,
-          "image_number": i + 1,
-          // ... (other input parameters)
-        };
+      Map<String, Object> input = {
+        "prompt": query,
+        "cn_type1": "ImagePrompt",
+        "cn_type2": "ImagePrompt",
+        "cn_type3": "ImagePrompt",
+        "cn_type4": "ImagePrompt",
+        "sharpness": sharpness,
+        "image_seed": int.parse(seed),
+        "uov_method": "Disabled",
+        "image_number": 1,
+        "guidance_scale": 4,
+        "refiner_switch": 0.5,
+        "negative_prompt": "",
+        "style_selections": "Fooocus V2,Fooocus Enhance,Fooocus Sharp",
+        "uov_upscale_value": 0,
+        "outpaint_selections": "",
+        "outpaint_distance_top": 0,
+        "performance_selection": "Speed",
+        "outpaint_distance_left": 0,
+        "aspect_ratios_selection": "1152*896",
+        "outpaint_distance_right": 0,
+        "outpaint_distance_bottom": 0,
+        "inpaint_additional_prompt": ""
+      };
 
-        String jsonString = await createAndGetJson(modelVersion, apiKey, input);
-        var responseJson = jsonDecode(jsonString);
+      String jsonString = await createGetJson(
+          // comment out for replicate use
+          modelVersion,
+          apiKey,
+          input); // comment out for replicate use
 
-        String pngLink = responseJson['output'][0];
-        imageUrls.add(pngLink);
+      //String jsonString = await createGetJson(modelVersion, apiKey, input); //comment out for runpod
 
-        // Download the image
-        await _downloadImage(pngLink);
-      }
+      var responseJson =
+          jsonDecode(jsonString); //converts string to json object
+      String output = responseJson['output'][0];
+
+      List splitted = output.split(','); // comment out if using replicate
+      String base64String = splitted[1]; // comment out if using replicate
 
       setState(() {
-        _imageUrl = imageUrls.first; // Only showing the first generated image
+        //_imageUrl = output; // comment out if using runpod
+        _imageBytes = base64String; // comment out if using replicate
       });
-
-      // Navigate to the new screen with the generated images
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ImageDisplayScreen(imageUrls: imageUrls),
-        ),
-      );
     } catch (e) {
       setState(() {
         print(e);
         _errorMessage = 'Failed to generate image: $e';
       });
-    }
-  }
-
-  Future<void> _downloadImage(String imageUrl) async {
-    try {
-      var imageId = await ImageDownloader.downloadImage(imageUrl);
-      if (imageId == null) {
-        throw Exception("Failed to download image");
-      }
-    } catch (error) {
-      print("Image download failed: $error");
     }
   }
 
@@ -151,7 +127,7 @@ class _MyImageWidgetState extends State<MyImageWidget> {
           content: TextField(
             controller: _urlController,
             decoration: const InputDecoration(
-              labelText: 'Enter API URL',
+              labelText: 'Enter Img Seed, -1 is random',
               border: OutlineInputBorder(),
             ),
           ),
@@ -164,7 +140,8 @@ class _MyImageWidgetState extends State<MyImageWidget> {
             ),
             TextButton(
               onPressed: () {
-                _generateImage(_queryController.text.trim(), _sharpness.toInt());
+                _generateImage(
+                    _queryController.text.trim(), _sharpness.toInt());
                 Navigator.of(context).pop();
               },
               child: const Text('Save'),
@@ -173,13 +150,6 @@ class _MyImageWidgetState extends State<MyImageWidget> {
         );
       },
     );
-  }
-//yo
-  @override
-  void dispose() {
-    _imageUrl = null;
-    _errorMessage = null;
-    super.dispose();
   }
 
   @override
@@ -227,43 +197,6 @@ class _MyImageWidgetState extends State<MyImageWidget> {
                 },
               ),
               const SizedBox(height: 16),
-              Text(
-                'Aspect Ratio: $_selectedAspectRatio',
-                style: const TextStyle(fontSize: 16),
-              ),
-              DropdownButton<String>(
-                value: _selectedAspectRatio,
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedAspectRatio = newValue;
-                    });
-                  }
-                },
-                items: aspectRatios.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Number of Images: $_selectedImageCount',
-                style: const TextStyle(fontSize: 16),
-              ),
-              Slider(
-                value: _selectedImageCount.toDouble(),
-                min: 1,
-                max: 8,
-                divisions: 7,
-                onChanged: (newValue) {
-                  setState(() {
-                    _selectedImageCount = newValue.toInt();
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
                   String query = _queryController.text.trim();
@@ -276,8 +209,11 @@ class _MyImageWidgetState extends State<MyImageWidget> {
               const SizedBox(height: 20),
               Expanded(
                 child: Center(
-                  child: _imageUrl != null
-                      ? Image.network(_imageUrl!)
+                  //child: _imageUrl != null // comment if using runpod
+                  child: _imageBytes != null // comment if using replicate
+                      //? Image.network(_imageUrl!)//comment if using runpod
+                      ? Image.memory(base64Decode(
+                          _imageBytes!)) // comment if using replicate
                       : _errorMessage != null
                           ? Text(
                               _errorMessage!,
@@ -293,28 +229,3 @@ class _MyImageWidgetState extends State<MyImageWidget> {
     );
   }
 }
-
-class ImageDisplayScreen extends StatelessWidget {
-  final List<String> imageUrls;
-
-  const ImageDisplayScreen({Key? key, required this.imageUrls}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.popUntil(context, ModalRoute.withName(Navigator.defaultRouteName));
-        return false;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Generated Images'),
-        ),
-        body: ListView(
-          children: imageUrls.map((url) => Image.network(url)).toList(),
-        ),
-      ),
-    );
-  }
-}
-

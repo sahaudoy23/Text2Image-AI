@@ -3,7 +3,6 @@
 //TODO: setup exceptions and error handling
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'dart:io';
 
 Future<String> create(
     String model, String apiKey, Map<String, Object> input) async {
